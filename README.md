@@ -38,14 +38,6 @@ sudo chmod +x /usr/local/bin/opencode-switcher
 opencode-switcher
 ```
 
-If `raw.githubusercontent.com` is unreachable, use the GitHub API instead:
-
-```bash
-gh api repos/neulxf/opencode-agicto-setup/contents/opencode-switcher.sh --jq '.content' | base64 -d > /tmp/opencode-switcher.sh
-chmod +x /tmp/opencode-switcher.sh
-bash /tmp/opencode-switcher.sh
-```
-
 | Option | What it does |
 |---|---|
 | **1) Vanilla OpenCode** | Removes oh-my-openagent plugin, restores vanilla OpenCode |
