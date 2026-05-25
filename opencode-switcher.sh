@@ -2,6 +2,7 @@
 # =========================================================================
 #  OpenCode Mode Switcher
 #  Switch between vanilla OpenCode, OpenAgent recommended, and custom modes
+#  Backs up config on switch-away, restores on switch-back.
 # =========================================================================
 
 set -euo pipefail
@@ -10,6 +11,9 @@ OMO_CONFIG_DIR="${HOME}/.config/opencode"
 OPENCODE_JSON="${OMO_CONFIG_DIR}/opencode.json"
 OMO_JSON="${OMO_CONFIG_DIR}/oh-my-openagent.json"
 TUI_JSON="${OMO_CONFIG_DIR}/tui.json"
+BACKUP_DIR="${OMO_CONFIG_DIR}/.omo-backups"
+RECOMMENDED_BACKUP="${BACKUP_DIR}/recommended.json"
+CUSTOM_BACKUP="${BACKUP_DIR}/custom.json"
 PLUGIN_NAME="oh-my-openagent@latest"
 PLUGIN_TUI="oh-my-openagent/tui"
 
@@ -19,71 +23,28 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 BOLD='\033[1m'
 
 # ── Helpers: JSON manipulation via Python3 ──
 
-py_read_json() {
+py_read_plugin() {
     python3 -c "
-import json, sys
-with open('$1') as f:
+import json
+with open('$OPENCODE_JSON') as f:
     data = json.load(f)
-# Check plugin array
 plugins = data.get('plugin', [])
-has_omo = '$PLUGIN_NAME' in plugins
-has_tui = '$PLUGIN_TUI' in plugins
-print(f'HAS_PLUGIN={json.dumps(has_omo)}')
-print(f'HAS_TUI_PLUGIN={json.dumps(has_tui)}')
-"
-}
-
-py_get_mode() {
-    python3 -c "
-import json, os, sys
-config_path = '$OPENCODE_JSON'
-omo_path = '$OMO_JSON'
-
-with open(config_path) as f:
-    config = json.load(f)
-
-plugins = config.get('plugin', [])
-has_omo = '$PLUGIN_NAME' in plugins
-
-if not has_omo:
-    print('original')
-    sys.exit(0)
-
-if not os.path.exists(omo_path):
-    print('recommended')
-    sys.exit(0)
-
-with open(omo_path) as f:
-    omo = json.load(f)
-
-agents = omo.get('agents', {})
-models = [a.get('model') for a in agents.values() if a.get('model')]
-
-if len(models) <= 1:
-    print('recommended')
-    sys.exit(0)
-
-first = models[0]
-if all(m == first for m in models):
-    print(f'custom:{first}')
-else:
-    print('recommended')
+print('true' if '$PLUGIN_NAME' in plugins else 'false')
 "
 }
 
 py_remove_plugin() {
     python3 -c "
 import json
-path = '$OPENCODE_JSON'
-with open(path) as f:
+with open('$OPENCODE_JSON') as f:
     data = json.load(f)
 data['plugin'] = [p for p in data.get('plugin', []) if p != '$PLUGIN_NAME']
-with open(path, 'w') as f:
+with open('$OPENCODE_JSON', 'w') as f:
     json.dump(data, f, indent=2)
 print('OK')
 "
@@ -92,17 +53,31 @@ print('OK')
 py_add_plugin() {
     python3 -c "
 import json
-path = '$OPENCODE_JSON'
-with open(path) as f:
+with open('$OPENCODE_JSON') as f:
     data = json.load(f)
 plugins = data.get('plugin', [])
 if '$PLUGIN_NAME' not in plugins:
     plugins.append('$PLUGIN_NAME')
 data['plugin'] = plugins
-with open(path, 'w') as f:
+with open('$OPENCODE_JSON', 'w') as f:
     json.dump(data, f, indent=2)
 print('OK')
 "
+}
+
+py_models_all_same() {
+    python3 -c "
+import json
+with open('$OMO_JSON') as f:
+    omo = json.load(f)
+agents = omo.get('agents', {})
+models = [a.get('model') for a in agents.values() if a.get('model')]
+if len(models) <= 1:
+    print('false')
+    sys.exit(0)
+first = models[0]
+print('true' if all(m == first for m in models) else 'false')
+" 2>/dev/null || echo "false"
 }
 
 # ── Detect current mode ──
@@ -114,7 +89,7 @@ detect_mode() {
     fi
 
     local has_plugin
-    has_plugin=$(py_read_json "$OPENCODE_JSON" | grep "^HAS_PLUGIN=" | cut -d= -f2)
+    has_plugin=$(py_read_plugin)
 
     if [ "$has_plugin" != "true" ]; then
         echo "original"
@@ -126,17 +101,72 @@ detect_mode() {
         return
     fi
 
-    local mode
-    mode=$(py_get_mode 2>/dev/null || echo "recommended")
-    echo "$mode"
+    local uniform
+    uniform=$(py_models_all_same)
+    if [ "$uniform" = "true" ]; then
+        local model
+        model=$(python3 -c "
+import json
+with open('$OMO_JSON') as f:
+    d = json.load(f)
+agents = d.get('agents', {})
+for a in agents.values():
+    m = a.get('model')
+    if m:
+        print(m)
+        break
+" 2>/dev/null)
+        echo "custom:${model:-?}"
+    else
+        echo "recommended"
+    fi
+}
+
+# ── Backup / Restore ──
+
+backup_current() {
+    local label="$1"  # "recommended" or "custom"
+    if [ -f "$OMO_JSON" ]; then
+        mkdir -p "$BACKUP_DIR"
+        cp "$OMO_JSON" "${BACKUP_DIR}/${label}.json"
+        echo -e "  ${GREEN}✓${NC} Backed up current config → ${BACKUP_DIR}/${label}.json"
+    fi
+}
+
+restore_recommended() {
+    if [ -f "$RECOMMENDED_BACKUP" ]; then
+        cp "$RECOMMENDED_BACKUP" "$OMO_JSON"
+        echo -e "  ${GREEN}✓${NC} Restored oh-my-openagent.json from backup"
+        return 0
+    else
+        return 1
+    fi
+}
+
+restore_custom() {
+    if [ -f "$CUSTOM_BACKUP" ]; then
+        cp "$CUSTOM_BACKUP" "$OMO_JSON"
+        echo -e "  ${GREEN}✓${NC} Restored oh-my-openagent.json from custom backup"
+        return 0
+    else
+        return 1
+    fi
 }
 
 # ── Mode switching actions ──
 
 action_original() {
+    local current
+    current=$(detect_mode)
+
+    # Backup before switching away
+    case "$current" in
+        recommended) backup_current "recommended" ;;
+        custom:*)    backup_current "custom" ;;
+    esac
+
     echo -e "${YELLOW}Switching to vanilla OpenCode mode...${NC}"
 
-    # Remove plugin from opencode.json
     if py_remove_plugin 2>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Removed oh-my-openagent from opencode.json"
     else
@@ -144,7 +174,7 @@ action_original() {
         return 1
     fi
 
-    # Keep oh-my-openagent.json as backup (won't load without plugin entry)
+    # Keep oh-my-openagent.json (won't load without plugin entry)
     # Remove tui.json
     if [ -f "$TUI_JSON" ]; then
         rm -f "$TUI_JSON"
@@ -157,9 +187,16 @@ action_original() {
 }
 
 action_recommended() {
+    local current
+    current=$(detect_mode)
+
+    # Backup before switching away
+    case "$current" in
+        custom:*)    backup_current "custom" ;;
+    esac
+
     echo -e "${YELLOW}Switching to OpenAgent Recommended mode...${NC}"
 
-    # Register plugin
     if py_add_plugin 2>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
     else
@@ -167,8 +204,11 @@ action_recommended() {
         return 1
     fi
 
-    # Write oh-my-openagent.json with AGICTO recommended config
-    cat > "$OMO_JSON" << 'OMOEOF'
+    # Try backup restore first; fall back to fresh generation
+    if restore_recommended; then
+        :  # already restored from backup
+    else
+        cat > "$OMO_JSON" << 'OMOEOF'
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
   "agents": {
@@ -196,9 +236,9 @@ action_recommended() {
   }
 }
 OMOEOF
-    echo -e "  ${GREEN}✓${NC} Wrote oh-my-openagent.json (AGICTO recommended)"
+        echo -e "  ${GREEN}✓${NC} Wrote fresh oh-my-openagent.json (AGICTO recommended)"
+    fi
 
-    # Write tui.json
     cat > "$TUI_JSON" << 'TUIEOF'
 {
   "plugin": ["oh-my-openagent/tui"]
@@ -208,11 +248,13 @@ TUIEOF
 
     echo ""
     echo -e "  ${GREEN}${BOLD}OpenAgent Recommended mode active.${NC}"
-    echo -e "  All AGICTO model mappings are in place."
     echo -e "  Run ${CYAN}opencode${NC} to start."
 }
 
 action_custom() {
+    local current
+    current=$(detect_mode)
+
     echo ""
     echo -e "${YELLOW}OpenAgent Custom Mode${NC}"
     echo -e "All agents and categories will use the same model."
@@ -236,10 +278,15 @@ action_custom() {
         return 1
     fi
 
+    # Backup before switching away
+    case "$current" in
+        recommended) backup_current "recommended" ;;
+        custom:*)    backup_current "custom" ;;
+    esac
+
     echo ""
     echo -e "${YELLOW}Switching to OpenAgent Custom mode (${custom_model})...${NC}"
 
-    # Register plugin
     if py_add_plugin 2>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
     else
@@ -247,10 +294,8 @@ action_custom() {
         return 1
     fi
 
-    # Write oh-my-openagent.json with uniform model
     python3 -c "
 import json
-
 config = {
     '\$schema': 'https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json',
     'agents': {
@@ -277,14 +322,17 @@ config = {
         'writing': {'model': '$custom_model'}
     }
 }
-
 with open('$OMO_JSON', 'w') as f:
     json.dump(config, f, indent=2)
 print('OK')
 "
     echo -e "  ${GREEN}✓${NC} Wrote oh-my-openagent.json (all → ${custom_model})"
 
-    # Write tui.json
+    # Also save as custom backup for future restore
+    mkdir -p "$BACKUP_DIR"
+    cp "$OMO_JSON" "$CUSTOM_BACKUP"
+    echo -e "  ${GREEN}✓${NC} Saved as custom backup"
+
     cat > "$TUI_JSON" << 'TUIEOF'
 {
   "plugin": ["oh-my-openagent/tui"]
@@ -315,10 +363,16 @@ print_header() {
             ;;
         recommended)
             echo -e "  Current mode: ${GREEN}OpenAgent Recommended${NC} (AGICTO model mappings)"
+            if [ -f "$RECOMMENDED_BACKUP" ]; then
+                echo -e "  Backup:       ${CYAN}available${NC}"
+            fi
             ;;
         custom:*)
             local model="${mode#custom:}"
             echo -e "  Current mode: ${YELLOW}OpenAgent Custom${NC} (all → ${model})"
+            if [ -f "$CUSTOM_BACKUP" ]; then
+                echo -e "  Backup:       ${CYAN}available${NC}"
+            fi
             ;;
         *)
             echo -e "  Current mode: ${RED}Unknown${NC}"
@@ -342,7 +396,6 @@ print_menu() {
 # ── Entry point ──
 
 main() {
-    # Ensure config directory exists
     mkdir -p "$OMO_CONFIG_DIR"
 
     while true; do
