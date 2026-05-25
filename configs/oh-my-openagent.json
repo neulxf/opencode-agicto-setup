@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": {
+      "model": "agicto/claude-opus-4-7"
+    },
+    "prometheus": {
+      "model": "agicto/claude-opus-4-7"
+    },
+    "atlas": {
+      "model": "agicto/claude-sonnet-4-6"
+    },
+    "metis": {
+      "model": "agicto/claude-sonnet-4-6"
+    },
+    "oracle": {
+      "model": "agicto/gpt-5.5"
+    },
+    "hephaestus": {
+      "model": "agicto/gpt-5.5"
+    },
+    "momus": {
+      "model": "agicto/gpt-5.5"
+    },
+    "multimodal-looker": {
+      "model": "agicto/gpt-5.5"
+    },
+    "explore": {
+      "model": "opencode/deepseek-v4-flash"
+    },
+    "librarian": {
+      "model": "agicto/kimi-k2.6"
+    },
+    "sisyphus-junior": {
+      "model": "agicto/claude-sonnet-4-6"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "agicto/gemini-3.1-pro-preview"
+    },
+    "ultrabrain": {
+      "model": "agicto/gpt-5.5"
+    },
+    "deep": {
+      "model": "agicto/claude-opus-4-7"
+    },
+    "artistry": {
+      "model": "agicto/gpt-5.5"
+    },
+    "quick": {
+      "model": "agicto/claude-haiku-4-5-20251001"
+    },
+    "unspecified-low": {
+      "model": "opencode/deepseek-v4-flash"
+    },
+    "unspecified-high": {
+      "model": "agicto/claude-sonnet-4-6"
+    },
+    "writing": {
+      "model": "agicto/claude-sonnet-4-6"
+    }
+  }
+}
