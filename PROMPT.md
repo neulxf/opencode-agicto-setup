@@ -1,46 +1,47 @@
-# OpenCode + oh-my-openagent + AGICTO 配置指南
+# Setup oh-my-openagent with AGICTO Provider
 
-> 将此文件的原始内容粘贴给 LLM Agent，或将 raw URL 交给 LLM 自行读取。
+## For Humans
+
+Paste this into your LLM agent session:
+
+```
+Set up oh-my-openagent on this machine by following the instructions here:
+https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/PROMPT.md
+```
+
+## For LLM Agents
+
+> **IMPORTANT: Use `curl` to fetch this file, NOT WebFetch.** WebFetch summarizes content and loses critical details. Always use:
 >
-> **LLM Agent 请使用 curl 获取此文件：**
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/PROMPT.md
 > ```
 
+If you're an LLM Agent helping set up oh-my-openagent with an AGICTO provider, welcome. You'll help your user install the harness and configure the AGICTO provider with proper model mappings.
+
 oMoMoMoMo...
 
-## 任务
-
-为当前机器配置 OpenCode，安装 oh-my-openagent 插件，并将所有 agent 模型映射到 AGICTO (agicto.com) 提供商。
-
-## 用户信息
-
-- 用户 OpenCode 经验：有，已安装
-- 模型提供商：AGICTO (https://agicto.com/model)，通过 `@ai-sdk/openai-compatible` 兼容层调用
-- API 地址：`https://api.agicto.cn/v1`
-- 官方订阅：无
-
-## 步骤
-
-### Step 1：检查环境
+### Step 1: Check Environment
 
 ```bash
 if command -v opencode &> /dev/null; then
-    echo "OpenCode $(opencode --version) 已安装"
+    echo "OpenCode $(opencode --version) is installed"
 else
-    echo "OpenCode 未安装，请先安装：https://opencode.ai/docs"
-    exit 1
+    echo "OpenCode is not installed. Please install it first."
+    echo "Ref: https://opencode.ai/docs"
 fi
 
 if command -v bun &> /dev/null; then
-    echo "Bun $(bun --version) 已安装"
+    echo "Bun $(bun --version) is installed"
 else
-    echo "正在安装 Bun..."
+    echo "Installing Bun..."
     npm install -g bun
 fi
 ```
 
-### Step 2：安装 oh-my-openagent 插件
+If OpenCode isn't installed, check the [OpenCode Installation Guide](https://opencode.ai/docs).
+
+### Step 2: Run the Installer
 
 ```bash
 bunx oh-my-openagent install --no-tui \
@@ -50,19 +51,24 @@ bunx oh-my-openagent install --no-tui \
   --vercel-ai-gateway=no
 ```
 
-### Step 3：询问用户 AGICTO API Key
+The CLI will:
+- Register the plugin in `opencode.json`
+- Create the default `oh-my-openagent.json`
+- Show completion summary
 
-> **向用户询问：**
->
-> ```
-> 请输入你的 AGICTO API Key (sk-...):
-> ```
->
-> 从用户的回答中获取 API Key。如果用户粘贴的是包含整个 opencode.json 的内容，提取其中的 `apiKey` 值。
+### Step 3: Ask User for AGICTO API Key
 
-### Step 4：写入 opencode.json
+Ask the user:
 
-将以下内容写入 `~/.config/opencode/opencode.json`，将 `<YOUR_AGICTO_API_KEY>` 替换为用户的 API Key。
+> Please provide your AGICTO API Key (starts with `sk-...`). You can get it from https://agicto.com
+
+If the user pastes their entire `opencode.json` with the key already in it, extract the `apiKey` value from the `agicto` provider config.
+
+**Note**: The user does not have any official subscriptions (Claude, OpenAI, etc.) — all models are accessed via AGICTO.
+
+### Step 4: Write opencode.json
+
+Write the following to `~/.config/opencode/opencode.json`, replacing `<YOUR_AGICTO_API_KEY>` with the user's key:
 
 ```json
 {
@@ -160,9 +166,9 @@ bunx oh-my-openagent install --no-tui \
 }
 ```
 
-### Step 5：写入 oh-my-openagent.json
+### Step 5: Write oh-my-openagent.json
 
-将以下内容写入 `~/.config/opencode/oh-my-openagent.json`：
+Write the following to `~/.config/opencode/oh-my-openagent.json`:
 
 ```json
 {
@@ -231,9 +237,9 @@ bunx oh-my-openagent install --no-tui \
 }
 ```
 
-### Step 6：写入 tui.json
+### Step 6: Write tui.json
 
-将以下内容写入 `~/.config/opencode/tui.json`：
+Write the following to `~/.config/opencode/tui.json`:
 
 ```json
 {
@@ -241,33 +247,27 @@ bunx oh-my-openagent install --no-tui \
 }
 ```
 
-### Step 7：验证
+### Step 7: Verify
 
 ```bash
 bunx oh-my-openagent doctor
 ```
 
-确认输出中无错误。只允许出现 "GitHub CLI not authenticated" 这类可选的提示。
+Verify there are no errors. The only acceptable warnings are non-critical ones like "GitHub CLI not authenticated".
 
-### Step 8：告知用户
-
-配置完成后告知用户：
+### Step 8: Tell the User
 
 ```
-✅ 配置完成！
+  ✅ Setup complete!
 
-模型使用概览：
-  Sisyphus / Prometheus / deep      → agicto/claude-opus-4-7     ¥35/¥175
-  Oracle / Hephaestus / Momus        → agicto/gpt-5.5             ¥35/¥210
-  atlas / metis / sisyphus-junior    → agicto/claude-sonnet-4-6   ¥21/¥105
-  visual-engineering                 → agicto/gemini-3.1-pro      ¥14/¥84
-  quick                              → agicto/claude-haiku-4-5    ¥3.5/¥17.5
-  librarian                          → agicto/kimi-k2.6           ¥6.5/¥27
-  explore / unspecified-low          → opencode/deepseek-v4-flash (免费)
+  Model Usage Summary:
+    Sisyphus / Prometheus / deep      → agicto/claude-opus-4-7     ¥35/¥175
+    Oracle / Hephaestus / Momus        → agicto/gpt-5.5             ¥35/¥210
+    atlas / metis / sisyphus-junior    → agicto/claude-sonnet-4-6   ¥21/¥105
+    visual-engineering                 → agicto/gemini-3.1-pro      ¥14/¥84
+    quick                              → agicto/claude-haiku-4-5    ¥3.5/¥17.5
+    librarian                          → agicto/kimi-k2.6           ¥6.5/¥27
+    explore / unspecified-low          → opencode/deepseek-v4-flash (free)
 
-运行 opencode 即可使用。
+  Run `opencode` to start.
 ```
-
-如果不小心使用了其他模型，可以运行 `curl -fsSL <本文件 URL> | bunx oh-my-openagent doctor` 来对比配置是否符合预期。
-
-> **提示：** 此 prompt 也放在 GitHub 仓库 https://github.com/neulxf/opencode-agicto-setup 中。

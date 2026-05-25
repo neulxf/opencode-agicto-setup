@@ -1,11 +1,12 @@
-# OpenCode + oh-my-openagent + AGICTO 配置
+# opencode-agicto-setup
 
-## 使用方式
+Set up oh-my-openagent with the AGICTO provider in one prompt.
 
-将 PROMPT.md 的原始内容粘贴给 LLM Agent，或让 LLM 自行读取：
+**Usage — paste this into any LLM agent session:**
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/PROMPT.md
+```
+Set up oh-my-openagent on this machine by following the instructions here:
+https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/PROMPT.md
 ```
 
-LLM 会按指示自动完成全部配置。
+The agent will handle the rest — install the plugin, configure the provider, map all agents to the right models, and verify the setup.
