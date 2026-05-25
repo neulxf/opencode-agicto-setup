@@ -17,25 +17,11 @@ The agent will install the plugin, configure the AGICTO provider, map all agents
 
 A utility script to switch between OpenCode modes.
 
-Save to a file first, then run:
-
 ```bash
-# Save the script
 curl -fsSLo /tmp/opencode-switcher.sh \
   https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/opencode-switcher.sh
-
-# Make executable and run
 chmod +x /tmp/opencode-switcher.sh
 bash /tmp/opencode-switcher.sh
-```
-
-Or install to PATH for easy access later:
-
-```bash
-sudo curl -fsSLo /usr/local/bin/opencode-switcher \
-  https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/opencode-switcher.sh
-sudo chmod +x /usr/local/bin/opencode-switcher
-opencode-switcher
 ```
 
 | Option | What it does |
