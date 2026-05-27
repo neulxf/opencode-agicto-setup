@@ -344,18 +344,23 @@ for a in d.get('agents', {}).values():
                 custom_model="$prev_model"
                 echo ""
                 echo -e "${YELLOW}Restoring from backup...${NC}"
-                # Backup current
-                case "$current" in
-                    recommended) backup_current "recommended" ;;
-                    custom:*)    backup_current "custom" ;;
-                esac
+                # Backup current mode (skip if already custom — no need to overwrite backup)
+                if [ "$current" = "recommended" ]; then
+                    backup_current "recommended"
+                fi
                 if py_add_plugin 2>/dev/null; then
                     changes+=("opencode.json: added oh-my-openagent to plugin array")
                     echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
                 fi
-                cp "$CUSTOM_BACKUP" "$OMO_JSON"
-                changes+=("oh-my-openagent.json: restored from custom backup (${prev_model})")
-                echo -e "  ${GREEN}✓${NC} Restored oh-my-openagent.json from backup"
+                if [ -f "$CUSTOM_BACKUP" ]; then
+                    cp "$CUSTOM_BACKUP" "$OMO_JSON"
+                    changes+=("oh-my-openagent.json: restored from custom backup (${prev_model})")
+                    echo -e "  ${GREEN}✓${NC} Restored oh-my-openagent.json from backup"
+                else
+                    echo -e "  ${RED}✗${NC} Backup file not found at ${CUSTOM_BACKUP}"
+                    echo -e "  ${RED}Cancelled.${NC}"
+                    return 1
+                fi
                 if [ ! -f "$TUI_JSON" ]; then
                     cat > "$TUI_JSON" << 'TUIEOF'
 {
@@ -365,7 +370,6 @@ TUIEOF
                     changes+=("tui.json: wrote TUI plugin entry")
                     echo -e "  ${GREEN}✓${NC} Wrote tui.json"
                 fi
-                # Summary
                 echo ""
                 echo -e "${BOLD}Files modified:${NC}"
                 for c in "${changes[@]}"; do echo "  • $c"; done
@@ -429,8 +433,14 @@ TUIEOF
             [Yy]*) ;;
             *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
         esac
+    elif echo "$validation_result" | grep -q "^invalid:"; then
+        local invalid_reason="${validation_result#invalid:}"
+        echo -e "  ${RED}✗${NC} Invalid model: ${invalid_reason}"
+        echo -e "     Model must be in the format ${CYAN}provider/model-name${NC} (e.g. opencode/deepseek-v4-flash)"
+        echo -e "  ${RED}Cancelled.${NC}"
+        return 1
     else
-        echo -e "  ${YELLOW}⚠${NC} Could not validate model (config may not exist yet)."
+        echo -e "  ${YELLOW}⚠${NC} Could not validate model. Proceeding..."
     fi
 
     # ── Backup before switching away ──
