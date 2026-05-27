@@ -80,6 +80,57 @@ print('true' if all(m == first for m in models) else 'false')
 " 2>/dev/null || echo "false"
 }
 
+# ── Model validation ──
+
+py_validate_model() {
+    python3 -c "
+import json, sys
+
+model = sys.argv[1]
+config_path = sys.argv[2]
+
+if '/' not in model:
+    print('invalid:missing_provider')
+    sys.exit(1)
+
+provider = model.split('/')[0]
+model_name = '/'.join(model.split('/')[1:])
+
+# Built-in providers that ship with OpenCode
+builtin_providers = {'opencode', 'deepseek', 'openai', 'anthropic', 'google', 'github-copilot', 'xai', 'moonshotai'}
+
+if provider in builtin_providers:
+    print('valid')
+    sys.exit(0)
+
+try:
+    with open(config_path) as f:
+        config = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    print('unknown:config_unreadable')
+    sys.exit(1)
+
+providers = config.get('provider', {})
+if provider not in providers:
+    print(f'unknown_provider:{provider}')
+    sys.exit(1)
+
+models = providers[provider].get('models', {})
+if model_name not in models:
+    avail = ','.join(list(models.keys())[:10])
+    print(f'unknown_model:{model_name}')
+    print(f'hint:available models: {avail}')
+    sys.exit(1)
+
+# Valid, get display name with pricing
+info = models[model_name]
+name = info.get('name', model_name)
+price_input = info.get('inputPrice', '?')
+price_output = info.get('outputPrice', '?')
+print(f'valid:{name} (¥{price_input}/¥{price_output} per 1M tokens)')
+" "$1" "$OPENCODE_JSON"
+}
+
 # ── Detect current mode ──
 
 detect_mode() {
@@ -158,6 +209,7 @@ restore_custom() {
 action_original() {
     local current
     current=$(detect_mode)
+    local changes=()
 
     # Backup before switching away
     case "$current" in
@@ -168,19 +220,22 @@ action_original() {
     echo -e "${YELLOW}Switching to vanilla OpenCode mode...${NC}"
 
     if py_remove_plugin 2>/dev/null; then
+        changes+=("opencode.json: removed oh-my-openagent from plugin array")
         echo -e "  ${GREEN}✓${NC} Removed oh-my-openagent from opencode.json"
     else
         echo -e "  ${RED}✗${NC} Failed to modify opencode.json"
         return 1
     fi
 
-    # Keep oh-my-openagent.json (won't load without plugin entry)
-    # Remove tui.json
     if [ -f "$TUI_JSON" ]; then
         rm -f "$TUI_JSON"
+        changes+=("tui.json: deleted")
         echo -e "  ${GREEN}✓${NC} Removed tui.json"
     fi
 
+    echo ""
+    echo -e "${BOLD}Files modified:${NC}"
+    for c in "${changes[@]}"; do echo "  • $c"; done
     echo ""
     echo -e "  ${GREEN}${BOLD}Vanilla OpenCode restored.${NC}"
     echo -e "  Run ${CYAN}opencode${NC} to start without oh-my-openagent."
@@ -189,6 +244,7 @@ action_original() {
 action_recommended() {
     local current
     current=$(detect_mode)
+    local changes=()
 
     # Backup before switching away
     case "$current" in
@@ -198,6 +254,7 @@ action_recommended() {
     echo -e "${YELLOW}Switching to OpenAgent Recommended mode...${NC}"
 
     if py_add_plugin 2>/dev/null; then
+        changes+=("opencode.json: added oh-my-openagent to plugin array")
         echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
     else
         echo -e "  ${RED}✗${NC} Failed to register plugin"
@@ -206,7 +263,7 @@ action_recommended() {
 
     # Try backup restore first; fall back to fresh generation
     if restore_recommended; then
-        :  # already restored from backup
+        changes+=("oh-my-openagent.json: restored from backup")
     else
         cat > "$OMO_JSON" << 'OMOEOF'
 {
@@ -236,6 +293,7 @@ action_recommended() {
   }
 }
 OMOEOF
+        changes+=("oh-my-openagent.json: fresh write with AGICTO recommended mappings")
         echo -e "  ${GREEN}✓${NC} Wrote fresh oh-my-openagent.json (AGICTO recommended)"
     fi
 
@@ -244,8 +302,12 @@ OMOEOF
   "plugin": ["oh-my-openagent/tui"]
 }
 TUIEOF
+    changes+=("tui.json: wrote TUI plugin entry")
     echo -e "  ${GREEN}✓${NC} Wrote tui.json"
 
+    echo ""
+    echo -e "${BOLD}Files modified:${NC}"
+    for c in "${changes[@]}"; do echo "  • $c"; done
     echo ""
     echo -e "  ${GREEN}${BOLD}OpenAgent Recommended mode active.${NC}"
     echo -e "  Run ${CYAN}opencode${NC} to start."
@@ -254,15 +316,74 @@ TUIEOF
 action_custom() {
     local current
     current=$(detect_mode)
+    local changes=()
+    local custom_model=""
 
     echo ""
     echo -e "${YELLOW}OpenAgent Custom Mode${NC}"
     echo -e "All agents and categories will use the same model."
     echo ""
 
-    # Show model suggestions
+    # ── Offer restore from previous custom backup ──
+    if [ -f "$CUSTOM_BACKUP" ]; then
+        local prev_model
+        prev_model=$(python3 -c "
+import json
+with open('$CUSTOM_BACKUP') as f:
+    d = json.load(f)
+for a in d.get('agents', {}).values():
+    m = a.get('model')
+    if m:
+        print(m)
+        break
+" 2>/dev/null || echo "unknown")
+        echo -e "  Previous custom config found: all agents → ${CYAN}${prev_model}${NC}"
+        read -rp "  Restore it? [Y/n]: " restore_ans
+        case "${restore_ans:-Y}" in
+            [Yy]*|"")
+                custom_model="$prev_model"
+                echo ""
+                echo -e "${YELLOW}Restoring from backup...${NC}"
+                # Backup current
+                case "$current" in
+                    recommended) backup_current "recommended" ;;
+                    custom:*)    backup_current "custom" ;;
+                esac
+                if py_add_plugin 2>/dev/null; then
+                    changes+=("opencode.json: added oh-my-openagent to plugin array")
+                    echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
+                fi
+                cp "$CUSTOM_BACKUP" "$OMO_JSON"
+                changes+=("oh-my-openagent.json: restored from custom backup (${prev_model})")
+                echo -e "  ${GREEN}✓${NC} Restored oh-my-openagent.json from backup"
+                if [ ! -f "$TUI_JSON" ]; then
+                    cat > "$TUI_JSON" << 'TUIEOF'
+{
+  "plugin": ["oh-my-openagent/tui"]
+}
+TUIEOF
+                    changes+=("tui.json: wrote TUI plugin entry")
+                    echo -e "  ${GREEN}✓${NC} Wrote tui.json"
+                fi
+                # Summary
+                echo ""
+                echo -e "${BOLD}Files modified:${NC}"
+                for c in "${changes[@]}"; do echo "  • $c"; done
+                echo ""
+                echo -e "  ${GREEN}${BOLD}OpenAgent Custom mode active.${NC}"
+                echo -e "  All agents set to: ${CYAN}${prev_model}${NC}"
+                echo -e "  Run ${CYAN}opencode${NC} to start."
+                return
+                ;;
+        esac
+    fi
+
+    # ── Show model suggestions (includes deepseek/xxx) ──
     echo -e "Common choices:"
     echo -e "  ${CYAN}opencode/deepseek-v4-flash${NC}   (free, OpenCode official)"
+    echo -e "  ${CYAN}deepseek/deepseek-v4-flash${NC}   (via DeepSeek official)"
+    echo -e "  ${CYAN}deepseek/deepseek-r1${NC}         (via DeepSeek official)"
+    echo -e "  ${CYAN}deepseek/deepseek-v4-pro${NC}     (via DeepSeek official)"
     echo -e "  ${CYAN}agicto/claude-opus-4-7${NC}       (¥35/¥175 via AGICTO)"
     echo -e "  ${CYAN}agicto/gpt-5.5${NC}               (¥35/¥210 via AGICTO)"
     echo -e "  ${CYAN}agicto/claude-sonnet-4-6${NC}     (¥21/¥105 via AGICTO)"
@@ -278,7 +399,41 @@ action_custom() {
         return 1
     fi
 
-    # Backup before switching away
+    # ── Validate model ──
+    echo ""
+    echo -e "  ${YELLOW}Validating model...${NC}"
+    local validation_result
+    validation_result=$(py_validate_model "$custom_model" 2>&1)
+    local validation_status=$?
+
+    if [ $validation_status -eq 0 ]; then
+        local model_info="${validation_result#valid:}"
+        echo -e "  ${GREEN}✓${NC} Model verified: ${model_info}"
+    elif echo "$validation_result" | grep -q "^unknown_provider:"; then
+        local bad_provider="${validation_result#unknown_provider:}"
+        echo -e "  ${YELLOW}⚠${NC} Provider '${bad_provider}' is not found in opencode.json."
+        echo -e "     The model may still work if OpenCode has it built-in."
+        read -rp "  ？ Proceed anyway? [y/N]: " confirm_ans
+        case "${confirm_ans:-N}" in
+            [Yy]*) ;;
+            *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
+        esac
+    elif echo "$validation_result" | grep -q "^unknown_model:"; then
+        local bad_model="${validation_result#unknown_model:}"
+        local hint=""
+        hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
+        echo -e "  ${YELLOW}⚠${NC} Model '${bad_model}' not found in its provider's model list."
+        [ -n "$hint" ] && echo -e "     ${hint}"
+        read -rp "  ？ Proceed anyway? [y/N]: " confirm_ans
+        case "${confirm_ans:-N}" in
+            [Yy]*) ;;
+            *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
+        esac
+    else
+        echo -e "  ${YELLOW}⚠${NC} Could not validate model (config may not exist yet)."
+    fi
+
+    # ── Backup before switching away ──
     case "$current" in
         recommended) backup_current "recommended" ;;
         custom:*)    backup_current "custom" ;;
@@ -288,6 +443,7 @@ action_custom() {
     echo -e "${YELLOW}Switching to OpenAgent Custom mode (${custom_model})...${NC}"
 
     if py_add_plugin 2>/dev/null; then
+        changes+=("opencode.json: added oh-my-openagent to plugin array")
         echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
     else
         echo -e "  ${RED}✗${NC} Failed to register plugin"
@@ -326,20 +482,30 @@ with open('$OMO_JSON', 'w') as f:
     json.dump(config, f, indent=2)
 print('OK')
 "
+    changes+=("oh-my-openagent.json: all agents model → ${custom_model}")
+    changes+=("oh-my-openagent.json: all categories model → ${custom_model}")
     echo -e "  ${GREEN}✓${NC} Wrote oh-my-openagent.json (all → ${custom_model})"
 
-    # Also save as custom backup for future restore
+    # Save as custom backup for future restore
     mkdir -p "$BACKUP_DIR"
     cp "$OMO_JSON" "$CUSTOM_BACKUP"
-    echo -e "  ${GREEN}✓${NC} Saved as custom backup"
+    echo -e "  ${GREEN}✓${NC} Saved as custom backup for future restore"
 
-    cat > "$TUI_JSON" << 'TUIEOF'
+    if [ ! -f "$TUI_JSON" ]; then
+        cat > "$TUI_JSON" << 'TUIEOF'
 {
   "plugin": ["oh-my-openagent/tui"]
 }
 TUIEOF
-    echo -e "  ${GREEN}✓${NC} Wrote tui.json"
+        changes+=("tui.json: wrote TUI plugin entry")
+        echo -e "  ${GREEN}✓${NC} Wrote tui.json"
+    else
+        changes+=("tui.json: unchanged (already exists)")
+    fi
 
+    echo ""
+    echo -e "${BOLD}Files modified:${NC}"
+    for c in "${changes[@]}"; do echo "  • $c"; done
     echo ""
     echo -e "  ${GREEN}${BOLD}OpenAgent Custom mode active.${NC}"
     echo -e "  All agents set to: ${CYAN}${custom_model}${NC}"
