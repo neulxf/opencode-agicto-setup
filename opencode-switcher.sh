@@ -193,11 +193,28 @@ for a in agents.values():
 
 backup_current() {
     local label="$1"  # "recommended" or "custom"
-    if [ -f "$OMO_JSON" ]; then
-        mkdir -p "$BACKUP_DIR"
-        cp "$OMO_JSON" "${BACKUP_DIR}/${label}.json"
-        echo -e "  ${GREEN}✓${NC} Backed up current config → ${BACKUP_DIR}/${label}.json"
+    if [ ! -f "$OMO_JSON" ]; then
+        return
     fi
+    # Verify the current config matches the label to prevent cross-contamination
+    if [ "$label" = "recommended" ]; then
+        local uniform
+        uniform=$(py_models_all_same 2>/dev/null || echo "false")
+        if [ "$uniform" = "true" ]; then
+            echo -e "  ${YELLOW}⚠${NC} Skipped recommended backup (current config has uniform models — looks like custom mode, not recommended)"
+            return
+        fi
+    elif [ "$label" = "custom" ]; then
+        local uniform
+        uniform=$(py_models_all_same 2>/dev/null || echo "true")
+        if [ "$uniform" = "false" ]; then
+            echo -e "  ${YELLOW}⚠${NC} Skipped custom backup (current config has diverse models — looks like recommended mode, not custom)"
+            return
+        fi
+    fi
+    mkdir -p "$BACKUP_DIR"
+    cp "$OMO_JSON" "${BACKUP_DIR}/${label}.json"
+    echo -e "  ${GREEN}✓${NC} Backed up current config → ${BACKUP_DIR}/${label}.json"
 }
 
 restore_recommended() {
@@ -384,10 +401,6 @@ for a in d.get('agents', {}).values():
                 custom_model="$prev_model"
                 echo ""
                 echo -e "${YELLOW}Restoring from backup...${NC}"
-                # Backup current mode (skip if already custom — no need to overwrite backup)
-                if [ "$current" = "recommended" ]; then
-                    backup_current "recommended"
-                fi
                 if py_add_plugin 2>/dev/null; then
                     changes+=("opencode.json: added oh-my-openagent to plugin array")
                     echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
@@ -484,11 +497,10 @@ TUIEOF
         echo ""
     done
 
-    # ── Backup before switching away ──
-    case "$current" in
-        recommended) backup_current "recommended" ;;
-        custom:*)    backup_current "custom" ;;
-    esac
+    # ── Backup current config if in custom mode ──
+    if [[ "$current" == custom:* ]]; then
+        backup_current "custom"
+    fi
 
     echo ""
     echo -e "${YELLOW}Switching to OpenAgent Custom mode (${custom_model})...${NC}"
