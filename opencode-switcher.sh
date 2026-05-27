@@ -497,9 +497,9 @@ TUIEOF
         echo ""
     done
 
-    # ── Backup current config if in custom mode ──
-    if [[ "$current" == custom:* ]]; then
-        backup_current "custom"
+    # ── Backup current config before switching away ──
+    if [[ "$current" == recommended ]] || [[ "$current" == custom:* ]]; then
+        backup_current "${current%%:*}"
     fi
 
     echo ""
