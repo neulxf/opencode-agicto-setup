@@ -67,7 +67,7 @@ print('OK')
 
 py_models_all_same() {
     python3 -c "
-import json
+import json, sys
 with open('$OMO_JSON') as f:
     omo = json.load(f)
 agents = omo.get('agents', {})
@@ -99,7 +99,23 @@ model_name = '/'.join(model.split('/')[1:])
 # Built-in providers that ship with OpenCode
 builtin_providers = {'opencode', 'deepseek', 'openai', 'anthropic', 'google', 'github-copilot', 'xai', 'moonshotai'}
 
+# Known models for best-effort check on built-in providers
+known_models = {
+    'opencode': ['deepseek-v4-flash', 'gpt-5-nano', 'big-pickle', 'claude-opus-4-7', 'gpt-5.5', 'kimi-k2.5', 'glm-5', 'minimax-m2.7'],
+    'deepseek': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-r1', 'deepseek-v3.2'],
+    'openai': ['gpt-5.5', 'gpt-5-nano', 'gpt-4.7', 'o4.7-mini'],
+    'anthropic': ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+    'google': ['gemini-3.1-pro-preview', 'gemini-3.1-flash-preview'],
+    'xai': ['grok-5'],
+}
+
 if provider in builtin_providers:
+    known = known_models.get(provider, [])
+    if known and model_name not in known:
+        avail = ','.join(known[:10])
+        print(f'unknown_model:{model_name}')
+        print(f'hint:built-in provider — known models: {avail}')
+        sys.exit(1)
     print('valid')
     sys.exit(0)
 
@@ -261,10 +277,8 @@ action_recommended() {
         return 1
     fi
 
-    # Try backup restore first; fall back to fresh generation
-    if restore_recommended; then
-        changes+=("oh-my-openagent.json: restored from backup")
-    else
+    # Helper: fresh-generate recommended config into OMO_JSON
+    gen_recommended() {
         cat > "$OMO_JSON" << 'OMOEOF'
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
@@ -293,7 +307,33 @@ action_recommended() {
   }
 }
 OMOEOF
-        changes+=("oh-my-openagent.json: fresh write with AGICTO recommended mappings")
+    }
+
+    # Try backup restore first; verify integrity
+    local restored_ok=false
+    local backup_corrupted=false
+    if restore_recommended; then
+        local uniform
+        uniform=$(py_models_all_same 2>/dev/null || echo "false")
+        if [ "$uniform" = "true" ]; then
+            echo -e "  ${YELLOW}⚠${NC} Backup appears corrupted (all models identical)."
+            backup_corrupted=true
+        else
+            restored_ok=true
+        fi
+    fi
+
+    if [ "$restored_ok" = "true" ]; then
+        changes+=("oh-my-openagent.json: restored from backup")
+    else
+        if [ "$backup_corrupted" = "true" ]; then
+            echo -e "     Regenerating fresh config and overwriting backup..."
+        fi
+        gen_recommended
+        # Save fresh config as backup for future restores
+        mkdir -p "$BACKUP_DIR"
+        cp "$OMO_JSON" "$RECOMMENDED_BACKUP"
+        changes+=("oh-my-openagent.json: fresh write with AGICTO recommended mappings; backup saved")
         echo -e "  ${GREEN}✓${NC} Wrote fresh oh-my-openagent.json (AGICTO recommended)"
     fi
 
@@ -382,66 +422,67 @@ TUIEOF
         esac
     fi
 
-    # ── Show model suggestions (includes deepseek/xxx) ──
-    echo -e "Common choices:"
-    echo -e "  ${CYAN}opencode/deepseek-v4-flash${NC}   (free, OpenCode official)"
-    echo -e "  ${CYAN}deepseek/deepseek-v4-flash${NC}   (via DeepSeek official)"
-    echo -e "  ${CYAN}deepseek/deepseek-r1${NC}         (via DeepSeek official)"
-    echo -e "  ${CYAN}deepseek/deepseek-v4-pro${NC}     (via DeepSeek official)"
-    echo -e "  ${CYAN}agicto/claude-opus-4-7${NC}       (¥35/¥175 via AGICTO)"
-    echo -e "  ${CYAN}agicto/gpt-5.5${NC}               (¥35/¥210 via AGICTO)"
-    echo -e "  ${CYAN}agicto/claude-sonnet-4-6${NC}     (¥21/¥105 via AGICTO)"
-    echo -e "  ${CYAN}agicto/claude-haiku-4-5${NC}      (¥3.5/¥17.5 via AGICTO)"
-    echo -e "  ${CYAN}agicto/kimi-k2.6${NC}             (¥6.5/¥27 via AGICTO)"
-    echo -e "  ${CYAN}agicto/deepseek-v4-flash${NC}     (¥1/¥2 via AGICTO)"
-    echo ""
+    # ── Input / validation retry loop ──
+    while true; do
+        echo -e "Common choices:"
+        echo -e "  ${CYAN}opencode/deepseek-v4-flash${NC}   (free, OpenCode official)"
+        echo -e "  ${CYAN}deepseek/deepseek-v4-flash${NC}   (via DeepSeek official)"
+        echo -e "  ${CYAN}deepseek/deepseek-r1${NC}         (via DeepSeek official)"
+        echo -e "  ${CYAN}deepseek/deepseek-v4-pro${NC}     (via DeepSeek official)"
+        echo -e "  ${CYAN}agicto/claude-opus-4-7${NC}       (¥35/¥175 via AGICTO)"
+        echo -e "  ${CYAN}agicto/gpt-5.5${NC}               (¥35/¥210 via AGICTO)"
+        echo -e "  ${CYAN}agicto/claude-sonnet-4-6${NC}     (¥21/¥105 via AGICTO)"
+        echo -e "  ${CYAN}agicto/claude-haiku-4-5${NC}      (¥3.5/¥17.5 via AGICTO)"
+        echo -e "  ${CYAN}agicto/kimi-k2.6${NC}             (¥6.5/¥27 via AGICTO)"
+        echo -e "  ${CYAN}agicto/deepseek-v4-flash${NC}     (¥1/¥2 via AGICTO)"
+        echo ""
+        read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash, or empty to cancel): " custom_model
 
-    read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash): " custom_model
+        if [ -z "$custom_model" ]; then
+            echo -e "  ${RED}Cancelled.${NC}"
+            return 1
+        fi
 
-    if [ -z "$custom_model" ]; then
-        echo -e "  ${RED}Model cannot be empty. Cancelled.${NC}"
-        return 1
-    fi
+        echo ""
+        echo -e "  ${YELLOW}Validating model...${NC}"
+        local validation_result
+        validation_result=$(py_validate_model "$custom_model" 2>&1)
+        local validation_status=$?
 
-    # ── Validate model ──
-    echo ""
-    echo -e "  ${YELLOW}Validating model...${NC}"
-    local validation_result
-    validation_result=$(py_validate_model "$custom_model" 2>&1)
-    local validation_status=$?
-
-    if [ $validation_status -eq 0 ]; then
-        local model_info="${validation_result#valid:}"
-        echo -e "  ${GREEN}✓${NC} Model verified: ${model_info}"
-    elif echo "$validation_result" | grep -q "^unknown_provider:"; then
-        local bad_provider="${validation_result#unknown_provider:}"
-        echo -e "  ${YELLOW}⚠${NC} Provider '${bad_provider}' is not found in opencode.json."
-        echo -e "     The model may still work if OpenCode has it built-in."
-        read -rp "  ？ Proceed anyway? [y/N]: " confirm_ans
-        case "${confirm_ans:-N}" in
-            [Yy]*) ;;
-            *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
-        esac
-    elif echo "$validation_result" | grep -q "^unknown_model:"; then
-        local bad_model="${validation_result#unknown_model:}"
-        local hint=""
-        hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
-        echo -e "  ${YELLOW}⚠${NC} Model '${bad_model}' not found in its provider's model list."
-        [ -n "$hint" ] && echo -e "     ${hint}"
-        read -rp "  ？ Proceed anyway? [y/N]: " confirm_ans
-        case "${confirm_ans:-N}" in
-            [Yy]*) ;;
-            *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
-        esac
-    elif echo "$validation_result" | grep -q "^invalid:"; then
-        local invalid_reason="${validation_result#invalid:}"
-        echo -e "  ${RED}✗${NC} Invalid model: ${invalid_reason}"
-        echo -e "     Model must be in the format ${CYAN}provider/model-name${NC} (e.g. opencode/deepseek-v4-flash)"
-        echo -e "  ${RED}Cancelled.${NC}"
-        return 1
-    else
-        echo -e "  ${YELLOW}⚠${NC} Could not validate model. Proceeding..."
-    fi
+        if [ $validation_status -eq 0 ]; then
+            local model_info="${validation_result#valid:}"
+            echo -e "  ${GREEN}✓${NC} Model verified: ${model_info}"
+            break
+        elif echo "$validation_result" | grep -q "^unknown_provider:"; then
+            local bad_provider="${validation_result#unknown_provider:}"
+            echo -e "  ${YELLOW}⚠${NC} Provider '${bad_provider}' is not found in opencode.json."
+            echo -e "     The model may still work if OpenCode has it built-in."
+            read -rp "  Proceed anyway? [y/N]: " confirm_ans
+            case "${confirm_ans:-N}" in
+                [Yy]*) break ;;
+                *) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
+            esac
+        elif echo "$validation_result" | grep -q "^unknown_model:"; then
+            local bad_model="${validation_result#unknown_model:}"
+            local hint=""
+            hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
+            echo -e "  ${YELLOW}⚠${NC} Model '${bad_model}' not found."
+            [ -n "$hint" ] && echo -e "     ${hint}"
+            read -rp "  Proceed anyway? [y/N]: " confirm_ans
+            case "${confirm_ans:-N}" in
+                [Yy]*) break ;;
+                *) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
+            esac
+        elif echo "$validation_result" | grep -q "^invalid:"; then
+            local invalid_reason="${validation_result#invalid:}"
+            echo -e "  ${RED}✗${NC} ${invalid_reason}"
+            echo -e "     Must be ${CYAN}provider/model-name${NC} (e.g. opencode/deepseek-v4-flash)"
+        else
+            echo -e "  ${YELLOW}⚠${NC} Could not validate model. Proceeding..."
+            break
+        fi
+        echo ""
+    done
 
     # ── Backup before switching away ──
     case "$current" in
