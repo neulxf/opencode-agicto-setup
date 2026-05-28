@@ -83,84 +83,37 @@ print('true' if all(m == first for m in models) else 'false')
 # ── Model validation ──
 
 py_validate_model() {
-    python3 -c "
-import json, sys
+    local model="$1"
 
-model = sys.argv[1]
-config_path = sys.argv[2]
+    if [[ ! "$model" == */* ]]; then
+        echo "invalid:missing separator / (expected provider/model-name)"
+        return 1
+    fi
 
-if '/' not in model:
-    print('invalid:missing separator / (expected provider/model-name)')
-    sys.exit(1)
+    local provider="${model%%/*}"
+    local model_name="${model#*/}"
 
-provider = model.split('/')[0]
-model_name = '/'.join(model.split('/')[1:])
+    if [ -z "$provider" ] || [ -z "$model_name" ] || [ ${#model_name} -lt 3 ]; then
+        echo "invalid:empty or too-short provider/model-name"
+        return 1
+    fi
 
-if not provider:
-    print('invalid:empty provider (expected provider/model-name)')
-    sys.exit(1)
+    local available
+    available=$(opencode models 2>/dev/null) || true
 
-if not model_name or len(model_name) < 3:
-    print('invalid:model name too short or empty')
-    sys.exit(1)
+    if [ -z "$available" ]; then
+        echo "valid:cannot run opencode models, skipping"
+        return 0
+    fi
 
-try:
-    with open(config_path) as f:
-        config = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    print('valid:config unreadable, skipping')
-    sys.exit(0)
-
-providers = config.get('provider', {})
-
-if provider in providers:
-    models = providers[provider].get('models', {})
-    if model_name in models:
-        info = models[model_name]
-        name = info.get('name', model_name)
-        pi = info.get('inputPrice', '?')
-        po = info.get('outputPrice', '?')
-        print(f'valid:{name} (\u00a5{pi}/\u00a5{po} per 1M tokens)')
-        sys.exit(0)
-    else:
-        avail = ','.join(list(models.keys())[:10])
-        print(f'unknown_model:{model_name}')
-        print(f'hint:add \"{model_name}\" to \"{provider}\" in opencode.json, or use: {avail}')
-        sys.exit(1)
-
-elif provider == 'opencode':
-    opencode_models = [
-        'big-pickle', 'deepseek-v4-flash-free',
-        'mimo-v2.5-free', 'nemotron-3-super-free'
-    ]
-    if model_name in opencode_models:
-        print('valid:opencode built-in model')
-        sys.exit(0)
-    else:
-        avail = ','.join(opencode_models)
-        print(f'unknown_model:{model_name}')
-        print(f'hint:not a known opencode model — run `opencode models opencode` to see the current list. Known: {avail}')
-        sys.exit(1)
-
-elif provider == 'deepseek':
-    deepseek_models = [
-        'deepseek-chat', 'deepseek-reasoner',
-        'deepseek-v4-flash', 'deepseek-v4-pro'
-    ]
-    if model_name in deepseek_models:
-        print('valid:deepseek built-in model')
-        sys.exit(0)
-    else:
-        avail = ','.join(deepseek_models)
-        print(f'unknown_model:{model_name}')
-        print(f'hint:not a known deepseek model — run `opencode models` to see available models. Known: {avail}')
-        sys.exit(1)
-
-else:
-    print(f'unknown_provider:{provider}')
-    print(f'hint:provider \"{provider}\" not configured. Add it with model \"{model_name}\" to opencode.json, or use agicto/ or opencode/')
-    sys.exit(1)
-" "$1" "$OPENCODE_JSON"
+    if echo "$available" | grep -qxF "$model"; then
+        echo "valid:found in opencode models list"
+        return 0
+    else
+        echo "unknown_model:not found in opencode models"
+        echo "hint:run \`opencode models\` to see available models. Add \"$model\" to opencode.json if needed"
+        return 1
+    fi
 }
 
 # ── Detect current mode ──
@@ -494,20 +447,10 @@ TUIEOF
             local model_info="${validation_result#valid:}"
             echo -e "  ${GREEN}✓${NC} Model verified: ${model_info}"
             break
-        elif echo "$validation_result" | grep -q "^unknown_provider:"; then
-            local hint=""
-            hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
-            echo -e "  ${YELLOW}⚠${NC} Provider not found in opencode.json."
-            [ -n "$hint" ] && echo -e "     ${hint}"
-            read -rp "  Retry with a different model? [Y/n]: " confirm_ans
-            case "${confirm_ans:-Y}" in
-                [Yy]*) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
-                *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
-            esac
         elif echo "$validation_result" | grep -q "^unknown_model:"; then
             local hint=""
             hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
-            echo -e "  ${YELLOW}⚠${NC} Model not found."
+            echo -e "  ${RED}✗${NC} '${custom_model}' not found in opencode models"
             [ -n "$hint" ] && echo -e "     ${hint}"
             read -rp "  Retry with a different model? [Y/n]: " confirm_ans
             case "${confirm_ans:-Y}" in
