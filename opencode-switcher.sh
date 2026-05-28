@@ -364,19 +364,21 @@ for a in d.get('agents', {}).values():
         break
 " 2>/dev/null || echo "unknown")
         echo -e "  Previous custom config found: all agents → ${CYAN}${prev_model}${NC}"
-        read -rp "  Restore it? [Y/n]: " restore_ans
+        read -rp "  Restore it? [Y/n]: " restore_ans || true
         case "${restore_ans:-Y}" in
             [Yy]*|"")
                 custom_model="$prev_model"
                 echo ""
                 echo -e "${YELLOW}Restoring from backup...${NC}"
                 local restore_validation restore_valid
+                set +e
                 restore_validation=$(py_validate_model "$prev_model" 2>&1)
                 restore_valid=$?
+                set -e
                 if [ "$restore_valid" -ne 0 ]; then
                     echo -e "  ${YELLOW}⚠${NC} Backup model '${prev_model}' may be invalid:"
                     echo -e "     ${restore_validation}"
-                    read -rp "  Restore anyway? [y/N]: " force_ans
+                    read -rp "  Restore anyway? [y/N]: " force_ans || true
                     case "${force_ans:-N}" in
                         [Yy]*) ;;
                         *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
@@ -439,9 +441,11 @@ TUIEOF
 
         echo ""
         echo -e "  ${YELLOW}Validating model...${NC}"
-        local validation_result
+        local validation_result validation_status
+        set +e
         validation_result=$(py_validate_model "$custom_model" 2>&1)
-        local validation_status=$?
+        validation_status=$?
+        set -e
 
         if [ $validation_status -eq 0 ]; then
             local model_info="${validation_result#valid:}"
@@ -452,7 +456,7 @@ TUIEOF
             hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
             echo -e "  ${RED}✗${NC} '${custom_model}' not found in opencode models"
             [ -n "$hint" ] && echo -e "     ${hint}"
-            read -rp "  Retry with a different model? [Y/n]: " confirm_ans
+            read -rp "  Retry with a different model? [Y/n]: " confirm_ans || true
             case "${confirm_ans:-Y}" in
                 [Yy]*) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
                 *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
@@ -602,7 +606,7 @@ main() {
         print_header
         print_menu
 
-        read -rp "  Enter choice [1-4]: " choice
+        read -rp "  Enter choice [1-4]: " choice || { echo ""; echo "stdin closed, exiting"; exit 0; }
         echo ""
 
         case "$choice" in
