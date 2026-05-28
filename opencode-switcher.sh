@@ -111,7 +111,7 @@ py_validate_model() {
         return 0
     else
         echo "unknown_model:not found in opencode models"
-        echo "hint:run \`opencode models\` to see available models. Add \"$model\" to opencode.json if needed"
+        echo "hint:config the provider with \`opencode providers\` or \`/connect\` in opencode, then add \"$model\" to opencode.json"
         return 1
     fi
 }
