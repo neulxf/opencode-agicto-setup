@@ -84,78 +84,108 @@ Write the following to `~/.config/opencode/opencode.json`, replacing `<YOUR_AGIC
       "models": {
         "claude-opus-4-7": {
           "name": "Claude Opus 4-7  ¥35/¥175",
-          "inputPrice": 35,
-          "outputPrice": 175
+          "cost": {
+            "input": 35,
+            "output": 175
+          }
         },
         "claude-sonnet-4-6": {
           "name": "Claude Sonnet 4-6  ¥21/¥105  200Kctx",
-          "inputPrice": 21,
-          "outputPrice": 105
+          "cost": {
+            "input": 21,
+            "output": 105
+          }
         },
         "claude-haiku-4-5-20251001": {
           "name": "Claude Haiku 4-5  ¥3.5/¥17.5",
-          "inputPrice": 3.5,
-          "outputPrice": 17.5
+          "cost": {
+            "input": 3.5,
+            "output": 17.5
+          }
         },
         "gpt-5.5": {
           "name": "GPT-5.5  ¥35/¥210",
-          "inputPrice": 35,
-          "outputPrice": 210
+          "cost": {
+            "input": 35,
+            "output": 210
+          }
         },
         "gpt-5.3-codex": {
           "name": "GPT-5.3 Codex  ¥12.25/¥98",
-          "inputPrice": 12.25,
-          "outputPrice": 98
+          "cost": {
+            "input": 12.25,
+            "output": 98
+          }
         },
         "gpt-5.4": {
           "name": "GPT-5.4  ¥17.5/¥105  400Kctx",
-          "inputPrice": 17.5,
-          "outputPrice": 105
+          "cost": {
+            "input": 17.5,
+            "output": 105
+          }
         },
         "gemini-3.1-pro-preview": {
           "name": "Gemini 3.1 Pro  ¥14/¥84  1Mctx",
-          "inputPrice": 14,
-          "outputPrice": 84
+          "cost": {
+            "input": 14,
+            "output": 84
+          }
         },
         "gemini-3-flash-preview": {
           "name": "Gemini 3 Flash  ¥3.5/¥21",
-          "inputPrice": 3.5,
-          "outputPrice": 21
+          "cost": {
+            "input": 3.5,
+            "output": 21
+          }
         },
         "kimi-k2.6": {
           "name": "Kimi K2.6  ¥6.5/¥27",
-          "inputPrice": 6.5,
-          "outputPrice": 27
+          "cost": {
+            "input": 6.5,
+            "output": 27
+          }
         },
         "deepseek-v4-flash": {
           "name": "DeepSeek V4 Flash  ¥1/¥2",
-          "inputPrice": 1,
-          "outputPrice": 2
+          "cost": {
+            "input": 1,
+            "output": 2
+          }
         },
         "qwen3.6-plus": {
           "name": "Qwen 3.6 Plus  ¥2/¥12",
-          "inputPrice": 2,
-          "outputPrice": 12
+          "cost": {
+            "input": 2,
+            "output": 12
+          }
         },
         "glm-4.7": {
           "name": "GLM-4.7  ¥4/¥16",
-          "inputPrice": 4,
-          "outputPrice": 16
+          "cost": {
+            "input": 4,
+            "output": 16
+          }
         },
         "deepseek-r1": {
           "name": "DeepSeek R1  ¥4/¥16  128Kctx",
-          "inputPrice": 4,
-          "outputPrice": 16
+          "cost": {
+            "input": 4,
+            "output": 16
+          }
         },
         "grok-4": {
           "name": "Grok 4  ¥21/¥105  256Kctx",
-          "inputPrice": 21,
-          "outputPrice": 105
+          "cost": {
+            "input": 21,
+            "output": 105
+          }
         },
         "gpt-5.4-pro": {
           "name": "GPT-5.4 Pro  ¥210/¥1260",
-          "inputPrice": 210,
-          "outputPrice": 1260
+          "cost": {
+            "input": 210,
+            "output": 1260
+          }
         }
       }
     }
@@ -243,7 +273,9 @@ Write the following to `~/.config/opencode/tui.json`:
 
 ```json
 {
-  "plugin": ["oh-my-openagent/tui"]
+  "plugin": [
+    "oh-my-openagent/tui"
+  ]
 }
 ```
 
