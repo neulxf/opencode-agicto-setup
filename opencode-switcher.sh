@@ -90,11 +90,19 @@ model = sys.argv[1]
 config_path = sys.argv[2]
 
 if '/' not in model:
-    print('invalid:missing_provider')
+    print('invalid:missing separator / (expected provider/model-name)')
     sys.exit(1)
 
 provider = model.split('/')[0]
 model_name = '/'.join(model.split('/')[1:])
+
+if not provider:
+    print('invalid:empty provider (expected provider/model-name)')
+    sys.exit(1)
+
+if not model_name or len(model_name) < 3:
+    print('invalid:model name too short or empty')
+    sys.exit(1)
 
 # Built-in providers that ship with OpenCode
 builtin_providers = {'opencode', 'deepseek', 'openai', 'anthropic', 'google', 'github-copilot', 'xai', 'moonshotai'}
@@ -401,6 +409,18 @@ for a in d.get('agents', {}).values():
                 custom_model="$prev_model"
                 echo ""
                 echo -e "${YELLOW}Restoring from backup...${NC}"
+                local restore_validation restore_valid
+                restore_validation=$(py_validate_model "$prev_model" 2>&1)
+                restore_valid=$?
+                if [ "$restore_valid" -ne 0 ]; then
+                    echo -e "  ${YELLOW}⚠${NC} Backup model '${prev_model}' may be invalid:"
+                    echo -e "     ${restore_validation}"
+                    read -rp "  Restore anyway? [y/N]: " force_ans
+                    case "${force_ans:-N}" in
+                        [Yy]*) ;;
+                        *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
+                    esac
+                fi
                 if py_add_plugin 2>/dev/null; then
                     changes+=("opencode.json: added oh-my-openagent to plugin array")
                     echo -e "  ${GREEN}✓${NC} Registered oh-my-openagent plugin"
