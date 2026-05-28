@@ -430,7 +430,7 @@ TUIEOF
         echo -e "  ${CYAN}agicto/kimi-k2.6${NC}                  (¥6.5/¥27 via AGICTO)"
         echo -e "  ${CYAN}agicto/deepseek-v4-flash${NC}           (¥1/¥2 via AGICTO)"
         echo ""
-        read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash-free, or empty to cancel): " custom_model
+        read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash-free, or empty to cancel): " custom_model || true
 
         if [ -z "$custom_model" ]; then
             echo -e "  ${RED}Cancelled.${NC}"
@@ -609,20 +609,17 @@ main() {
             1)
                 action_original
                 echo ""
-                echo -e "  Press Enter to return to menu..."
-                read -r
+                sleep 2
                 ;;
             2)
                 action_recommended
                 echo ""
-                echo -e "  Press Enter to return to menu..."
-                read -r
+                sleep 2
                 ;;
             3)
                 action_custom
                 echo ""
-                echo -e "  Press Enter to return to menu..."
-                read -r
+                sleep 2
                 ;;
             4)
                 echo -e "  ${GREEN}Bye!${NC}"
