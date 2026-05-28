@@ -125,11 +125,30 @@ if provider in providers:
     else:
         avail = ','.join(list(models.keys())[:10])
         print(f'unknown_model:{model_name}')
-        print(f'hint:available: {avail}')
+        print(f'hint:add \"{model_name}\" to \"{provider}\" in opencode.json, or use: {avail}')
         sys.exit(1)
+
+elif provider == 'opencode':
+    opencode_models = [
+        'deepseek-v4-flash', 'gpt-5-nano', 'big-pickle',
+        'claude-opus-4-7', 'gpt-5.5', 'kimi-k2.5',
+        'glm-5', 'minimax-m2.7', 'minimax-m2.7-highspeed',
+        'gpt-5.3-codex', 'gemini-3.1-pro', 'gemini-3-flash',
+        'qwen3.5-plus', 'claude-haiku-4-5'
+    ]
+    if model_name in opencode_models:
+        print('valid:opencode built-in model')
+        sys.exit(0)
+    else:
+        print(f'unknown_model:{model_name}')
+        avail = ','.join(opencode_models)
+        print(f'hint:not a known opencode model. Known: {avail}')
+        sys.exit(1)
+
 else:
-    print('valid:unconfigured provider — accepted')
-    sys.exit(0)
+    print(f'unknown_provider:{provider}')
+    print(f'hint:provider \"{provider}\" not configured. Add it with model \"{model_name}\" to opencode.json, or use agicto/ or opencode/')
+    sys.exit(1)
 " "$1" "$OPENCODE_JSON"
 }
 
@@ -465,24 +484,24 @@ TUIEOF
             echo -e "  ${GREEN}✓${NC} Model verified: ${model_info}"
             break
         elif echo "$validation_result" | grep -q "^unknown_provider:"; then
-            local bad_provider="${validation_result#unknown_provider:}"
-            echo -e "  ${YELLOW}⚠${NC} Provider '${bad_provider}' is not found in opencode.json."
-            echo -e "     The model may still work if OpenCode has it built-in."
-            read -rp "  Proceed anyway? [y/N]: " confirm_ans
-            case "${confirm_ans:-N}" in
-                [Yy]*) break ;;
-                *) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
-            esac
-        elif echo "$validation_result" | grep -q "^unknown_model:"; then
-            local bad_model="${validation_result#unknown_model:}"
             local hint=""
             hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
-            echo -e "  ${YELLOW}⚠${NC} Model '${bad_model}' not found."
+            echo -e "  ${YELLOW}⚠${NC} Provider not found in opencode.json."
             [ -n "$hint" ] && echo -e "     ${hint}"
-            read -rp "  Proceed anyway? [y/N]: " confirm_ans
-            case "${confirm_ans:-N}" in
-                [Yy]*) break ;;
-                *) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
+            read -rp "  Retry with a different model? [Y/n]: " confirm_ans
+            case "${confirm_ans:-Y}" in
+                [Yy]*) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
+                *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
+            esac
+        elif echo "$validation_result" | grep -q "^unknown_model:"; then
+            local hint=""
+            hint=$(echo "$validation_result" | grep "^hint:" | sed 's/^hint://')
+            echo -e "  ${YELLOW}⚠${NC} Model not found."
+            [ -n "$hint" ] && echo -e "     ${hint}"
+            read -rp "  Retry with a different model? [Y/n]: " confirm_ans
+            case "${confirm_ans:-Y}" in
+                [Yy]*) echo -e "  ${YELLOW}Try a different model.${NC}" ;;
+                *) echo -e "  ${RED}Cancelled.${NC}"; return 1 ;;
             esac
         elif echo "$validation_result" | grep -q "^invalid:"; then
             local invalid_reason="${validation_result#invalid:}"
