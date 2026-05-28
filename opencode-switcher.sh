@@ -104,54 +104,32 @@ if not model_name or len(model_name) < 3:
     print('invalid:model name too short or empty')
     sys.exit(1)
 
-# Built-in providers that ship with OpenCode
-builtin_providers = {'opencode', 'deepseek', 'openai', 'anthropic', 'google', 'github-copilot', 'xai', 'moonshotai'}
-
-# Known models for best-effort check on built-in providers
-known_models = {
-    'opencode': ['deepseek-v4-flash', 'gpt-5-nano', 'big-pickle', 'claude-opus-4-7', 'gpt-5.5', 'kimi-k2.5', 'glm-5', 'minimax-m2.7'],
-    'deepseek': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-r1', 'deepseek-v3.2'],
-    'openai': ['gpt-5.5', 'gpt-5-nano', 'gpt-4.7', 'o4.7-mini'],
-    'anthropic': ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
-    'google': ['gemini-3.1-pro-preview', 'gemini-3.1-flash-preview'],
-    'xai': ['grok-5'],
-}
-
-if provider in builtin_providers:
-    known = known_models.get(provider, [])
-    if known and model_name not in known:
-        avail = ','.join(known[:10])
-        print(f'unknown_model:{model_name}')
-        print(f'hint:built-in provider — known models: {avail}')
-        sys.exit(1)
-    print('valid')
-    sys.exit(0)
-
 try:
     with open(config_path) as f:
         config = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
-    print('unknown:config_unreadable')
-    sys.exit(1)
+    print('valid:config unreadable, skipping')
+    sys.exit(0)
 
 providers = config.get('provider', {})
-if provider not in providers:
-    print(f'unknown_provider:{provider}')
-    sys.exit(1)
 
-models = providers[provider].get('models', {})
-if model_name not in models:
-    avail = ','.join(list(models.keys())[:10])
-    print(f'unknown_model:{model_name}')
-    print(f'hint:available models: {avail}')
-    sys.exit(1)
-
-# Valid, get display name with pricing
-info = models[model_name]
-name = info.get('name', model_name)
-price_input = info.get('inputPrice', '?')
-price_output = info.get('outputPrice', '?')
-print(f'valid:{name} (¥{price_input}/¥{price_output} per 1M tokens)')
+if provider in providers:
+    models = providers[provider].get('models', {})
+    if model_name in models:
+        info = models[model_name]
+        name = info.get('name', model_name)
+        pi = info.get('inputPrice', '?')
+        po = info.get('outputPrice', '?')
+        print(f'valid:{name} (\u00a5{pi}/\u00a5{po} per 1M tokens)')
+        sys.exit(0)
+    else:
+        avail = ','.join(list(models.keys())[:10])
+        print(f'unknown_model:{model_name}')
+        print(f'hint:available: {avail}')
+        sys.exit(1)
+else:
+    print('valid:unconfigured provider — accepted')
+    sys.exit(0)
 " "$1" "$OPENCODE_JSON"
 }
 
