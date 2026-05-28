@@ -5,7 +5,7 @@
 #  Backs up config on switch-away, restores on switch-back.
 # =========================================================================
 
-set -euo pipefail
+set -uo pipefail
 
 OMO_CONFIG_DIR="${HOME}/.config/opencode"
 OPENCODE_JSON="${OMO_CONFIG_DIR}/opencode.json"
@@ -371,10 +371,8 @@ for a in d.get('agents', {}).values():
                 echo ""
                 echo -e "${YELLOW}Restoring from backup...${NC}"
                 local restore_validation restore_valid
-                set +e
                 restore_validation=$(py_validate_model "$prev_model" 2>&1)
                 restore_valid=$?
-                set -e
                 if [ "$restore_valid" -ne 0 ]; then
                     echo -e "  ${YELLOW}⚠${NC} Backup model '${prev_model}' may be invalid:"
                     echo -e "     ${restore_validation}"
@@ -442,10 +440,8 @@ TUIEOF
         echo ""
         echo -e "  ${YELLOW}Validating model...${NC}"
         local validation_result validation_status
-        set +e
         validation_result=$(py_validate_model "$custom_model" 2>&1)
         validation_status=$?
-        set -e
 
         if [ $validation_status -eq 0 ]; then
             local model_info="${validation_result#valid:}"
