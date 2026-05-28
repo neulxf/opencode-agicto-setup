@@ -130,19 +130,30 @@ if provider in providers:
 
 elif provider == 'opencode':
     opencode_models = [
-        'deepseek-v4-flash', 'gpt-5-nano', 'big-pickle',
-        'claude-opus-4-7', 'gpt-5.5', 'kimi-k2.5',
-        'glm-5', 'minimax-m2.7', 'minimax-m2.7-highspeed',
-        'gpt-5.3-codex', 'gemini-3.1-pro', 'gemini-3-flash',
-        'qwen3.5-plus', 'claude-haiku-4-5'
+        'big-pickle', 'deepseek-v4-flash-free',
+        'mimo-v2.5-free', 'nemotron-3-super-free'
     ]
     if model_name in opencode_models:
         print('valid:opencode built-in model')
         sys.exit(0)
     else:
-        print(f'unknown_model:{model_name}')
         avail = ','.join(opencode_models)
-        print(f'hint:not a known opencode model. Known: {avail}')
+        print(f'unknown_model:{model_name}')
+        print(f'hint:not a known opencode model — run `opencode models opencode` to see the current list. Known: {avail}')
+        sys.exit(1)
+
+elif provider == 'deepseek':
+    deepseek_models = [
+        'deepseek-chat', 'deepseek-reasoner',
+        'deepseek-v4-flash', 'deepseek-v4-pro'
+    ]
+    if model_name in deepseek_models:
+        print('valid:deepseek built-in model')
+        sys.exit(0)
+    else:
+        avail = ','.join(deepseek_models)
+        print(f'unknown_model:{model_name}')
+        print(f'hint:not a known deepseek model — run `opencode models` to see available models. Known: {avail}')
         sys.exit(1)
 
 else:
@@ -314,7 +325,7 @@ action_recommended() {
     "metis": { "model": "agicto/claude-sonnet-4-6" },
     "atlas": { "model": "agicto/claude-sonnet-4-6" },
     "sisyphus-junior": { "model": "agicto/claude-sonnet-4-6" },
-    "explore": { "model": "opencode/deepseek-v4-flash" },
+    "explore": { "model": "opencode/deepseek-v4-flash-free" },
     "librarian": { "model": "agicto/kimi-k2.6" }
   },
   "categories": {
@@ -323,7 +334,7 @@ action_recommended() {
     "deep": { "model": "agicto/claude-opus-4-7" },
     "artistry": { "model": "agicto/gpt-5.5" },
     "quick": { "model": "agicto/claude-haiku-4-5-20251001" },
-    "unspecified-low": { "model": "opencode/deepseek-v4-flash" },
+    "unspecified-low": { "model": "opencode/deepseek-v4-flash-free" },
     "unspecified-high": { "model": "agicto/claude-sonnet-4-6" },
     "writing": { "model": "agicto/claude-sonnet-4-6" }
   }
@@ -455,18 +466,18 @@ TUIEOF
     # ── Input / validation retry loop ──
     while true; do
         echo -e "Common choices:"
-        echo -e "  ${CYAN}opencode/deepseek-v4-flash${NC}   (free, OpenCode official)"
-        echo -e "  ${CYAN}deepseek/deepseek-v4-flash${NC}   (via DeepSeek official)"
-        echo -e "  ${CYAN}deepseek/deepseek-r1${NC}         (via DeepSeek official)"
-        echo -e "  ${CYAN}deepseek/deepseek-v4-pro${NC}     (via DeepSeek official)"
-        echo -e "  ${CYAN}agicto/claude-opus-4-7${NC}       (¥35/¥175 via AGICTO)"
-        echo -e "  ${CYAN}agicto/gpt-5.5${NC}               (¥35/¥210 via AGICTO)"
-        echo -e "  ${CYAN}agicto/claude-sonnet-4-6${NC}     (¥21/¥105 via AGICTO)"
-        echo -e "  ${CYAN}agicto/claude-haiku-4-5${NC}      (¥3.5/¥17.5 via AGICTO)"
-        echo -e "  ${CYAN}agicto/kimi-k2.6${NC}             (¥6.5/¥27 via AGICTO)"
-        echo -e "  ${CYAN}agicto/deepseek-v4-flash${NC}     (¥1/¥2 via AGICTO)"
+        echo -e "  ${CYAN}opencode/deepseek-v4-flash-free${NC}  (free via OpenCode)"
+        echo -e "  ${CYAN}deepseek/deepseek-v4-flash${NC}       (via DeepSeek provider)"
+        echo -e "  ${CYAN}deepseek/deepseek-v4-pro${NC}         (via DeepSeek provider)"
+        echo -e "  ${CYAN}deepseek/deepseek-reasoner${NC}        (via DeepSeek provider)"
+        echo -e "  ${CYAN}agicto/claude-opus-4-7${NC}            (¥35/¥175 via AGICTO)"
+        echo -e "  ${CYAN}agicto/gpt-5.5${NC}                    (¥35/¥210 via AGICTO)"
+        echo -e "  ${CYAN}agicto/claude-sonnet-4-6${NC}          (¥21/¥105 via AGICTO)"
+        echo -e "  ${CYAN}agicto/claude-haiku-4-5${NC}            (¥3.5/¥17.5 via AGICTO)"
+        echo -e "  ${CYAN}agicto/kimi-k2.6${NC}                  (¥6.5/¥27 via AGICTO)"
+        echo -e "  ${CYAN}agicto/deepseek-v4-flash${NC}           (¥1/¥2 via AGICTO)"
         echo ""
-        read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash, or empty to cancel): " custom_model
+        read -rp "Enter model ID (e.g. opencode/deepseek-v4-flash-free, or empty to cancel): " custom_model
 
         if [ -z "$custom_model" ]; then
             echo -e "  ${RED}Cancelled.${NC}"
@@ -506,7 +517,7 @@ TUIEOF
         elif echo "$validation_result" | grep -q "^invalid:"; then
             local invalid_reason="${validation_result#invalid:}"
             echo -e "  ${RED}✗${NC} ${invalid_reason}"
-            echo -e "     Must be ${CYAN}provider/model-name${NC} (e.g. opencode/deepseek-v4-flash)"
+            echo -e "     Must be ${CYAN}provider/model-name${NC} (e.g. opencode/deepseek-v4-flash-free)"
         else
             echo -e "  ${YELLOW}⚠${NC} Could not validate model. Proceeding..."
             break
