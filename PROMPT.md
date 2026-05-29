@@ -85,106 +85,106 @@ Write the following to `~/.config/opencode/opencode.json`, replacing `<YOUR_AGIC
         "claude-opus-4-7": {
           "name": "Claude Opus 4-7  ¥35/¥175",
           "cost": {
-            "input": 4.861111,
-            "output": 24.305556
+            "input": 5.0,
+            "output": 25.0
           }
         },
         "claude-sonnet-4-6": {
           "name": "Claude Sonnet 4-6  ¥21/¥105  200Kctx",
           "cost": {
-            "input": 2.916667,
-            "output": 14.583333
+            "input": 3.0,
+            "output": 15.0
           }
         },
         "claude-haiku-4-5-20251001": {
           "name": "Claude Haiku 4-5  ¥3.5/¥17.5",
           "cost": {
-            "input": 0.486111,
-            "output": 2.430556
+            "input": 0.5,
+            "output": 2.5
           }
         },
         "gpt-5.5": {
           "name": "GPT-5.5  ¥35/¥210",
           "cost": {
-            "input": 4.861111,
-            "output": 29.166667
+            "input": 5.0,
+            "output": 30.0
           }
         },
         "gpt-5.3-codex": {
           "name": "GPT-5.3 Codex  ¥12.25/¥98",
           "cost": {
-            "input": 1.701389,
-            "output": 13.611111
+            "input": 1.75,
+            "output": 14.0
           }
         },
         "gpt-5.4": {
           "name": "GPT-5.4  ¥17.5/¥105  400Kctx",
           "cost": {
-            "input": 2.430556,
-            "output": 14.583333
+            "input": 2.5,
+            "output": 15.0
           }
         },
         "gemini-3.1-pro-preview": {
           "name": "Gemini 3.1 Pro  ¥14/¥84  1Mctx",
           "cost": {
-            "input": 1.944444,
-            "output": 11.666667
+            "input": 2.0,
+            "output": 12.0
           }
         },
         "gemini-3-flash-preview": {
           "name": "Gemini 3 Flash  ¥3.5/¥21",
           "cost": {
-            "input": 0.486111,
-            "output": 2.916667
+            "input": 0.5,
+            "output": 3.0
           }
         },
         "kimi-k2.6": {
           "name": "Kimi K2.6  ¥6.5/¥27",
           "cost": {
-            "input": 0.902778,
-            "output": 3.75
+            "input": 0.928571,
+            "output": 3.857143
           }
         },
         "deepseek-v4-flash": {
           "name": "DeepSeek V4 Flash  ¥1/¥2",
           "cost": {
-            "input": 0.138889,
-            "output": 0.277778
+            "input": 0.142857,
+            "output": 0.285714
           }
         },
         "qwen3.6-plus": {
           "name": "Qwen 3.6 Plus  ¥2/¥12",
           "cost": {
-            "input": 0.277778,
-            "output": 1.666667
+            "input": 0.285714,
+            "output": 1.714286
           }
         },
         "glm-4.7": {
           "name": "GLM-4.7  ¥4/¥16",
           "cost": {
-            "input": 0.555556,
-            "output": 2.222222
+            "input": 0.571429,
+            "output": 2.285714
           }
         },
         "deepseek-r1": {
           "name": "DeepSeek R1  ¥4/¥16  128Kctx",
           "cost": {
-            "input": 0.555556,
-            "output": 2.222222
+            "input": 0.571429,
+            "output": 2.285714
           }
         },
         "grok-4": {
           "name": "Grok 4  ¥21/¥105  256Kctx",
           "cost": {
-            "input": 2.916667,
-            "output": 14.583333
+            "input": 3.0,
+            "output": 15.0
           }
         },
         "gpt-5.4-pro": {
           "name": "GPT-5.4 Pro  ¥210/¥1260",
           "cost": {
-            "input": 29.166667,
-            "output": 175.0
+            "input": 30.0,
+            "output": 180.0
           }
         }
       }
