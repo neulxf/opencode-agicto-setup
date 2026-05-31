@@ -60,3 +60,4 @@ Or use the switcher's option 1, which does the same thing.
 |---|---|
 | `PROMPT.md` | LLM-readable setup instructions (curl and feed to any agent) |
 | `opencode-switcher.sh` | Interactive mode switching script |
+| `sync-limits.sh` | Sync context/output limits from models.dev into opencode.json |

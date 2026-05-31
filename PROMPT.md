@@ -287,7 +287,17 @@ bunx oh-my-openagent doctor
 
 Verify there are no errors. The only acceptable warnings are non-critical ones like "GitHub CLI not authenticated".
 
-### Step 8: Tell the User
+### Step 8: Sync Model Limits from models.dev
+
+Run the sync-limits script to populate context/output limits from the models.dev catalog:
+
+```bash
+curl -fsSLo /tmp/sync-limits.sh \
+  https://raw.githubusercontent.com/neulxf/opencode-agicto-setup/main/sync-limits.sh
+bash /tmp/sync-limits.sh
+```
+
+### Step 9: Tell the User
 
 ```
   ✅ Setup complete!
